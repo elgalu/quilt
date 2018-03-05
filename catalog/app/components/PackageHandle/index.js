@@ -18,18 +18,11 @@ const Text = styled.div`
 `;
 
 // eslint-disable-next-line object-curly-newline
-function PackageHandle({ drop = false, isPublic, isTeam, name, owner, showPrefix }) {
+function PackageHandle({ drop, isPublic, isTeam, name, owner, showPrefix }) {
   const team = config.team ? `${config.team.id}:` : '';
   const prefix = showPrefix ? `${team}${owner}/` : null;
-
-  let label = 'private';
-  if (isPublic === true) {
-    label = 'public';
-  } else if (isTeam === true) {
-    label = 'team';
-  } else {
-    label = 'private';
-  }
+  // eslint-disable-next-line no-nested-ternary
+  const label = isPublic ? 'public' : isTeam ? 'team' : 'private';
 
   return (
     <Text>
@@ -39,6 +32,8 @@ function PackageHandle({ drop = false, isPublic, isTeam, name, owner, showPrefix
 }
 
 PackageHandle.defaultProps = {
+  drop: false,
+  isPublic: true,
   showPrefix: true,
 };
 
