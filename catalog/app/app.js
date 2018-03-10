@@ -21,6 +21,8 @@ import App from 'containers/App';
 import { makeSelectLocationState } from 'containers/App/selectors';
 // Import Language Provider
 import LanguageProvider from 'containers/LanguageProvider';
+import { ReducerInjector } from 'utils/ReducerInjector';
+import { SagaInjector } from 'utils/SagaInjector';
 // Load the favicon, the manifest.json file and the .htaccess file
 /* eslint-disable import/no-unresolved, import/extensions */
 import '!file-loader?name=[name].[ext]!./favicon.ico';
@@ -34,11 +36,11 @@ import { translationMessages } from './i18n';
 // Import CSS reset and Global Styles
 import './global-styles';
 // Import root routes
-import createRoutes from './routes';
+import routes from './routes';
 
-Raven.config('https://e0c7810a7a0b4ce898d6e78c1b63f52d@sentry.io/300712').install()
+Raven.config('https://e0c7810a7a0b4ce898d6e78c1b63f52d@sentry.io/300712').install();
 
-Raven.context(function () {
+Raven.context(() => {
   // listen for Roboto fonts
   const robo = new FontFaceObserver('Roboto', {});
   const roboMono = new FontFaceObserver('Roboto Mono', {});
@@ -46,10 +48,7 @@ Raven.context(function () {
   // reload doc when we have all custom fonts
   Promise.all([robo.load(), roboSlab.load(), roboMono.load()]).then(() => {
     document.body.classList.add('fontLoaded');
-  }, () => {
-    document.body.classList.remove('fontLoaded');
   });
-
 
   // Create redux store with history
   // this uses the singleton browserHistory provided by react-router
@@ -68,7 +67,7 @@ Raven.context(function () {
   // Set up the router, wrapping all Routes in the App component
   const rootRoute = {
     component: App,
-    childRoutes: createRoutes(store),
+    childRoutes: routes,
   };
 
   // TODO: this does not work when element has yet to load
@@ -87,17 +86,21 @@ Raven.context(function () {
   const render = (messages) => {
     ReactDOM.render(
       <Provider store={store}>
-        <LanguageProvider messages={messages}>
-          <Router
-            history={history}
-            routes={rootRoute}
-            render={
-              // Scroll to top when going to a new page, imitating default browser
-              // behaviour
-              applyRouterMiddleware(useScroll(hashScroll))
-            }
-          />
-        </LanguageProvider>
+        <ReducerInjector inject={store.injectReducer}>
+          <SagaInjector run={store.runSaga}>
+            <LanguageProvider messages={messages}>
+              <Router
+                history={history}
+                routes={rootRoute}
+                render={
+                  // Scroll to top when going to a new page, imitating default browser
+                  // behaviour
+                  applyRouterMiddleware(useScroll(hashScroll))
+                }
+              />
+            </LanguageProvider>
+          </SagaInjector>
+        </ReducerInjector>
       </Provider>,
       document.getElementById('app')
     );
@@ -124,6 +127,17 @@ Raven.context(function () {
       .catch((err) => {
         throw err;
       });
+  } else {
+    render(translationMessages);
+  }
+
+  // Chunked polyfill for browsers without Intl support
+  if (!window.Intl) {
+    import('intl')
+      .then(() => Promise.all([
+        import('intl/locale-data/jsonp/en.js'),
+      ]))
+      .then(() => render(translationMessages));
   } else {
     render(translationMessages);
   }
